@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<ruleset name="Membership Health Check">
+
+	<description>WordPress coding standards, plus a PHP 7.4 compatibility gate to match the plugin header.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+	<exclude-pattern>/dist/</exclude-pattern>
+
+	<!--
+	The release builder is a command-line script that never runs inside
+	WordPress, so the WP_Filesystem and escaping rules that apply to plugin code
+	do not apply to it.
+	-->
+	<exclude-pattern>/bin/</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="4"/>
+
+	<config name="minimum_wp_version" value="6.0"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<rule ref="WordPress">
+		<!--
+		The plugin uses a PSR-4 style autoloader with one namespaced class per
+		file, so class files are named for the class rather than in the
+		class-foo.php convention this sniff expects.
+		-->
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="membership-health-check-for-paid-memberships-pro"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="mhcheck"/>
+				<element value="MembershipHealthCheck"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+</ruleset>

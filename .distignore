@@ -1,0 +1,16 @@
+/.wordpress-org
+/.github
+/.git
+/.gitignore
+/.gitattributes
+/.distignore
+/README.md
+/CHANGELOG.md
+/composer.json
+/composer.lock
+/phpcs.xml.dist
+/vendor
+/BACKGROUND.md
+*.zip
+/bin
+/dist

@@ -1,0 +1,25 @@
+{
+	"name": "pobrien333/membership-health-check-for-paid-memberships-pro",
+	"description": "Read-only health checks for Paid Memberships Pro.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4"
+	},
+	"require-dev": {
+		"squizlabs/php_codesniffer": "^3.13",
+		"wp-coding-standards/wpcs": "^3.2",
+		"phpcompatibility/phpcompatibility-wp": "^2.1"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"scripts": {
+		"build": "php bin/build.php",
+		"zip": "powershell -NoProfile -ExecutionPolicy Bypass -File bin/zip.ps1",
+		"lint": "phpcs",
+		"lint:fix": "phpcbf"
+	}
+}

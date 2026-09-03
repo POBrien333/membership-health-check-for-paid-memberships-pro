@@ -1,0 +1,42 @@
+/* Membership Health Check — admin styles */
+
+.mhc-intro { max-width: 46em; color: #50575e; }
+
+.mhc-check {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-left-width: 4px;
+	border-radius: 4px;
+	padding: 14px 18px;
+	margin: 14px 0;
+}
+
+.mhc-check--ok     { border-left-color: #00a32a; }
+.mhc-check--high   { border-left-color: #d63638; }
+.mhc-check--medium { border-left-color: #dba617; }
+.mhc-check--info   { border-left-color: #2271b1; }
+
+.mhc-check h2 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+
+.mhc-badge {
+	display: inline-block;
+	min-width: 28px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 600;
+	text-align: center;
+}
+
+.mhc-badge--ok     { background: #edfaef; color: #00681f; }
+.mhc-badge--high   { background: #fcf0f1; color: #a02728; }
+.mhc-badge--medium { background: #fcf5e6; color: #8a6100; }
+.mhc-badge--info   { background: #f0f6fc; color: #1d5b96; }
+
+.mhc-muted { color: #646970; font-size: 13px; margin: 0 0 10px; max-width: 60em; }
+
+.mhc-check table { margin-top: 10px; }
+
+/* The webhook panel is a standing reading rather than a list of faults. */
+.mhc-status { max-width: 60em; }
+.mhc-status td:first-child { font-family: Consolas, Monaco, monospace; font-size: 12px; }

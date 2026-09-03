@@ -1,0 +1,17 @@
+* text=auto eol=lf
+*.png binary
+
+/.wordpress-org  export-ignore
+/.github         export-ignore
+/.gitignore      export-ignore
+/.gitattributes  export-ignore
+/.distignore     export-ignore
+/README.md       export-ignore
+/CHANGELOG.md    export-ignore
+
+/composer.json   export-ignore
+/composer.lock   export-ignore
+/phpcs.xml.dist  export-ignore
+/vendor          export-ignore
+/BACKGROUND.md   export-ignore
+/bin             export-ignore
