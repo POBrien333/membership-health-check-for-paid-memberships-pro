@@ -121,7 +121,13 @@ final class AdminPage {
 		}
 
 		echo '<div class="wrap mhc">';
-		echo '<h1>' . esc_html__( 'Membership Health Check', 'membership-health-check-for-paid-memberships-pro' ) . '</h1>';
+		// The version sits in the heading rather than the footer: knowing which
+		// build produced a finding matters most at the moment you are reading it.
+		printf(
+			'<h1>%1$s <span class="mhc-version">%2$s</span></h1>',
+			esc_html__( 'Membership Health Check', 'membership-health-check-for-paid-memberships-pro' ),
+			esc_html( MHCHECK_VERSION )
+		);
 
 		if ( ! Plugin::pmpro_active() ) {
 			echo '<div class="notice notice-error"><p>'

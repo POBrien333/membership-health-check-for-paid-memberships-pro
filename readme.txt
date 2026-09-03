@@ -4,7 +4,7 @@ Tags: paid memberships pro, pmpro, membership, subscriptions, audit
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,10 @@ Partly so you do not have to leave the report. Mostly because PMPro keeps only t
 Names, email addresses and discount codes in these screenshots are placeholders. The counts, dates and amounts are real.
 
 == Changelog ==
+
+= 0.5.1 =
+* The plugin version now appears beside the report heading and at the top of the WP-CLI output, so you can tell at a glance which build produced a finding.
+* Fixed amounts printing their markup. PMPro returns HTML for some currency positions, so a euro placed after the amount showed as `17.00<sup>€</sup>` instead of `17.00€`. Affected any site whose currency sits after the amount.
 
 = 0.5.0 =
 * New check: "Payments not yet settled". Orders raised and never completed, on members who still have access — usually a card that declined, expired or was stopped at the bank. Reported as information, not a fault: most resolve on their own, and a gateway that gives up normally closes the membership by itself.
