@@ -130,6 +130,12 @@ final class AdminPage {
 			return;
 		}
 
+		$environment = Plugin::environment_note();
+
+		if ( '' !== $environment ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html( $environment ) . '</p></div>';
+		}
+
 		$tab = self::current_tab();
 
 		self::render_tabs( $tab );

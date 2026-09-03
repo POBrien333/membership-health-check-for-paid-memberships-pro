@@ -83,7 +83,8 @@ Partly so you do not have to leave the report. Mostly because PMPro keeps only t
 = 0.5.0 =
 * New check: "Payments due but not received". PMPro shows these as pending on the subscription screen, but there is no pending status stored anywhere — it is the scheduled next payment, still scheduled, because nothing has come back from the gateway. There is no order to find, which is what makes them easy to miss.
 * Usually a card that declined, expired or was stopped at the bank. The gateway retries for days or weeks while the member keeps full access, so this is the window in which a conversation still changes the outcome. After seven days it hands off to the failed-subscription check.
-* The two-hour grace before a payment counts as late is filterable through `mhcheck_pending_payment_grace_hours`.
+* A payment counts as late after a full day, and only for members who still have an active membership. The grace is filterable through `mhcheck_pending_payment_grace_hours`.
+* The report now warns when it is running outside a production environment. Every date-based check compares stored dates against the current clock, so on a staging site restored from a backup, payments taken since the snapshot look missing and cancellations look ignored. The webhook check also names a restored copy as one explanation for billing having gone quiet.
 
 = 0.4.0 =
 * New check: "Members with access and no subscription behind it". The existing check needed a subscription to have existed and ended, so it could not see anyone who never had one. That is most of the gap between your member count and your subscriber count.

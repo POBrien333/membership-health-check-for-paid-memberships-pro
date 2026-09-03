@@ -326,18 +326,21 @@ final class Checks {
 	 * outcome. Past a week the subscription is treated as failed instead, by the
 	 * check above.
 	 *
-	 * The two-hour default grace is not arbitrary: on the site this was written
-	 * for, every one of seven consecutive renewals produced its order within 57
-	 * seconds of falling due. A payment still missing hours later is not in
-	 * flight. Sites that bill by invoice will want a longer grace, hence the
-	 * filter.
+	 * The grace period is a full day, and that is deliberately generous. A
+	 * gateway that normally posts within a minute does not need 24 hours, but
+	 * every hour of grace is an hour in which a delayed webhook can still arrive
+	 * and settle the matter by itself. A check that reports a payment on Monday
+	 * and forgets it on Tuesday teaches people to ignore it, which costs more
+	 * than catching the failure a few hours sooner. It still runs six days ahead
+	 * of the failed-subscription check. Sites that bill by invoice will want
+	 * longer, hence the filter.
 	 */
 	public static function pending_payments(): array {
 		global $wpdb;
 
 		$env   = (string) get_option( 'pmpro_gateway_environment' );
 		$env   = '' === $env ? 'live' : $env;
-		$grace = (int) apply_filters( 'mhcheck_pending_payment_grace_hours', 2 );
+		$grace = (int) apply_filters( 'mhcheck_pending_payment_grace_hours', 24 );
 		$grace = max( 0, $grace );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table names come from $wpdb->prefix and cannot be placeholders.
@@ -351,6 +354,8 @@ final class Checks {
 				           WHERE o.user_id = s.user_id AND o.status = 'success' ) AS last_success
 				   FROM {$wpdb->prefix}pmpro_subscriptions s
 				   INNER JOIN {$wpdb->users} u ON u.ID = s.user_id
+				   INNER JOIN {$wpdb->prefix}pmpro_memberships_users mu
+				           ON mu.user_id = s.user_id AND mu.status = 'active'
 				  WHERE s.status = 'active'
 				    AND s.gateway_environment = %s
 				    AND s.next_payment_date IS NOT NULL
@@ -907,7 +912,7 @@ final class Checks {
 						'invoice.payment_succeeded',
 						sprintf(
 							/* translators: 1: days without a payment event, 2: number of active subscriptions, 3: longest normal quiet spell in days */
-							__( 'silent %1$d days against %2$d active subscriptions — this site has never before gone quieter than %3$d days', 'membership-health-check-for-paid-memberships-pro' ),
+							__( 'silent %1$d days against %2$d active subscriptions — this site has never before gone quieter than %3$d days. Either delivery has stopped, or this database is a copy restored from a backup.', 'membership-health-check-for-paid-memberships-pro' ),
 							$silent,
 							$active_subs,
 							$quietest

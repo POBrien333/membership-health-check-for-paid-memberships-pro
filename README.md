@@ -139,20 +139,34 @@ Deliberately short by default: a wrong guess here quietly accuses a paying membe
 
 ### When a payment counts as late
 
-A payment is reported as pending once it is two hours overdue. That default is measured rather than
-guessed — on the site this was written for, seven consecutive renewals each produced their order
-within 57 seconds of falling due, so a payment still missing hours later is not in flight.
+A payment is reported once it is a full day overdue. That is deliberately generous: a gateway that
+posts within a minute does not need 24 hours, but every hour of grace is an hour in which a delayed
+webhook can still arrive and settle the matter by itself. A check that reports a payment on Monday
+and has forgotten it by Tuesday teaches you to ignore the report, which costs far more than
+catching a real failure a few hours sooner. It still runs six days ahead of the failed-subscription
+check.
 
 Sites that bill by invoice, or whose gateway posts in batches, will want longer:
 
 ```php
 add_filter( 'mhcheck_pending_payment_grace_hours', function () {
-    return 48;
+    return 72;
 } );
 ```
 
 Past seven days the payment stops being pending and becomes a failed subscription, which is a
 different check and a `high` one.
+
+## Running it on a copy
+
+Every date-based check compares a stored date against the current clock. On a staging site restored
+from a backup those disagree by the age of the copy, so payments taken since the snapshot look
+missing, cancellations look ignored, and members who have left look like leaks. The findings are
+accurate about the database in front of them and worthless about your business.
+
+The report says so when `WP_ENVIRONMENT_TYPE` is anything other than `production`. Not every host
+sets it, so the webhook check also names a restored copy as one explanation when billing has gone
+quiet. If a report looks alarming, check which database you are pointed at before you act on it.
 
 ## Development
 

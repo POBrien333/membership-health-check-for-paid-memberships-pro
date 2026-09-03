@@ -20,12 +20,31 @@ entire time. So this is a window, not a verdict — which is why it is filed as
 gateway stopped charging*, which does treat it as a failure, and the two together
 now cover the whole timeline from *due this morning* to *free for four years*.
 
-The two-hour default grace is measured, not guessed. On the origin site seven
-consecutive renewals of the same subscription each produced their order within 57
-seconds of falling due; three subscriptions were sitting 6, 31 and 50 hours late
-when this was written. A payment still missing hours later is not in flight. Sites
-that bill by invoice will want longer, so the grace is filterable through
-`mhcheck_pending_payment_grace_hours`.
+The grace before a payment is called late is a full day, and deliberately
+generous. A gateway that posts within a minute does not need 24 hours, but every
+hour of grace is an hour in which a delayed webhook can still arrive and settle
+the matter by itself. A check that reports a payment on Monday and has forgotten
+it by Tuesday teaches people to ignore the report, which costs more than catching
+a failure a few hours sooner. It still runs six days ahead of the failed
+subscription check, and `mhcheck_pending_payment_grace_hours` moves it for sites
+that bill by invoice.
+
+The check also requires an active membership. Without that it reported payments
+as owing from people who had already left, which is noise of the worst kind:
+technically true of a subscription row, meaningless as a statement about a member.
+
+**A warning when the report cannot be trusted.** Every date-based check compares a
+stored date against the current clock. On a staging site restored from a backup
+the two disagree by the age of the copy, so payments taken since the snapshot look
+missing, cancellations look ignored, and departed members look like leaks. This
+cost a genuine afternoon during development: three subscriptions appeared 6, 31
+and 50 hours overdue, and all three were artefacts of a week-old copy being
+queried against today's clock.
+
+The report now says so whenever `WP_ENVIRONMENT_TYPE` is anything but
+`production`. Not every host sets it, so the webhook check additionally names a
+restored copy as one explanation for billing having gone quiet — the plugin cannot
+always know, but it can stop asserting more than it knows.
 
 ## [0.4.0] — 2026-09-01
 
