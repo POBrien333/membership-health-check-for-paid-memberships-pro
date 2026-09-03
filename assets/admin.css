@@ -40,3 +40,18 @@
 /* The webhook panel is a standing reading rather than a list of faults. */
 .mhc-status { max-width: 60em; }
 .mhc-status td:first-child { font-family: Consolas, Monaco, monospace; font-size: 12px; }
+
+/* Version, beside the heading: which build produced what you are reading. */
+.mhc-version {
+	display: inline-block;
+	vertical-align: middle;
+	margin-left: 4px;
+	padding: 2px 9px;
+	border: 1px solid #dcdcde;
+	border-radius: 10px;
+	background: #f6f7f7;
+	color: #646970;
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 1.6;
+}

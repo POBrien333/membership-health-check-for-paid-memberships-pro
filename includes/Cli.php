@@ -101,6 +101,11 @@ final class Cli {
 			return;
 		}
 
+		// Same reason as the admin heading: when a finding is surprising, the first
+		// question is which build produced it.
+		\WP_CLI::log( \WP_CLI::colorize( '%bMembership Health Check ' . MHCHECK_VERSION . '%n' ) );
+		\WP_CLI::log( '' );
+
 		foreach ( $results as $r ) {
 			if ( 0 === $r['count'] ) {
 				\WP_CLI::log( \WP_CLI::colorize( '%gOK%n  ' . $r['label'] ) );

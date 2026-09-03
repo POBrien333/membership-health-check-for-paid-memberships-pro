@@ -229,6 +229,9 @@ version belongs in the plugin header and the changelog, not in a path.
 
 Summarised here; the reasoning behind each change is in [CHANGELOG.md](CHANGELOG.md).
 
+- **0.5.1** — The version now shows beside the report heading and in the WP-CLI output. Fixed
+  amounts printing their markup: PMPro returns HTML for some currency positions, so a euro after
+  the amount rendered as `17.00<sup>€</sup>`.
 - **0.5.0** — Eleventh check: payments not yet settled. Orders raised and never completed, on
   members who still have access. PMPro advances the subscription on the strength of an unsettled
   order, so the membership reads as paid and these appear nowhere else. Reported as information,

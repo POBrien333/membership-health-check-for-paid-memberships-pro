@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.1] — 2026-09-03
+
+**The version now appears beside the report heading**, and at the top of the
+WP-CLI output. When a finding is surprising the first question is which build
+produced it, and answering that previously meant opening the plugins screen.
+
+**Amounts no longer print their markup.** `pmpro_formatPrice()` returns HTML for
+some currency positions — a euro placed after the amount comes back as
+`0.00<sup>&euro;</sup>` — and findings are escaped as plain text wherever they
+are rendered, so those tags appeared on screen:
+
+    17.00<sup>€</sup> due 2026-08-28, 5 days late — last paid 2026-07-28
+
+The markup is now stripped and the entity decoded, leaving `17.00€`. This affected
+*Payments not yet settled* and *Members with access and no subscription behind it*
+on any site whose currency sits after the amount, which is most of Europe.
+
 ## [0.5.0] — 2026-09-03
 
 Added an eleventh check: **Payments not yet settled**.
