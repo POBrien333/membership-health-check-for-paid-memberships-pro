@@ -259,9 +259,17 @@ final class Checks {
 	 * @param mixed $amount Order total, as PMPro stores it.
 	 */
 	private static function money( $amount ): string {
-		return function_exists( 'pmpro_formatPrice' )
-			? (string) pmpro_formatPrice( (float) $amount )
-			: number_format_i18n( (float) $amount, 2 );
+		if ( ! function_exists( 'pmpro_formatPrice' ) ) {
+			return number_format_i18n( (float) $amount, 2 );
+		}
+
+		// PMPro wraps the currency symbol in markup for some currency positions —
+		// a euro placed after the amount comes back as "0.00<sup>&euro;</sup>".
+		// Findings are escaped as plain text wherever they are rendered, so that
+		// markup would print as literal tags. Reduce it to the characters it means.
+		$formatted = (string) pmpro_formatPrice( (float) $amount );
+
+		return trim( html_entity_decode( wp_strip_all_tags( $formatted ), ENT_QUOTES, 'UTF-8' ) );
 	}
 
 	/**

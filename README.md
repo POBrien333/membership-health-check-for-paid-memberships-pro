@@ -43,6 +43,29 @@ None of it was visible in the admin. Every one of those became a check.
 
 The `high` checks are the ones that cost money.
 
+## What it looks like
+
+The Members tab. Every check is either clean or carrying a count, and each finding says what was
+found rather than only flagging a row.
+
+![The Members tab, showing four members with access but nothing billing and thirty-four with access
+and no subscription behind it, the latter listing the discount code that explains
+each](.wordpress-org/screenshot-1.png)
+
+Further down: payments raised and never settled, a subscription the gateway stopped charging 810
+days ago, and level roles left behind on people who are no longer members.
+
+![Payments not yet settled, subscriptions the gateway stopped charging, and level roles left on
+former members](.wordpress-org/screenshot-3.png)
+
+And the quieter end — orphaned rows, a discount code approaching its limit, and who lapses in the
+next thirty days.
+
+![Memberships belonging to deleted users, discount codes near their limit, and memberships ending in
+the next 30 days](.wordpress-org/screenshot-2.png)
+
+Names, addresses and discount codes are placeholders. The counts, dates and amounts are real.
+
 ## The distinction that matters
 
 A cancelled subscription **with** a future end date is a member winding down correctly — they paid
