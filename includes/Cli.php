@@ -44,6 +44,15 @@ final class Cli {
 		$format = $assoc_args['format'] ?? 'table';
 		$only   = $assoc_args['check'] ?? '';
 
+		// Warned before the findings, not after: on a restored copy every one of
+		// them is misleading, and it is far too easy to run this against the wrong
+		// site from a shell that looks identical to the right one.
+		$environment = Plugin::environment_note();
+
+		if ( '' !== $environment && 'count' !== $format ) {
+			\WP_CLI::warning( $environment );
+		}
+
 		$results = Checks::run_all();
 
 		if ( '' !== $only ) {

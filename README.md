@@ -31,6 +31,7 @@ None of it was visible in the admin. Every one of those became a check.
 |---|---|---|
 | Members with access but nothing billing | high | Subscription ended, membership never closed, no end date — indefinite free access |
 | Members with access and no subscription behind it | info | Never had one at all — with the discount code that usually explains why |
+| Payments not yet settled | info | Orders raised and never completed — PMPro rolls the subscription forward anyway, so they read as overdue nowhere |
 | Subscriptions the gateway stopped charging | high | Still marked `active`, but the next payment date passed and no charge followed |
 | Stripe webhook delivery | high | When each event type last arrived, whether billing has gone quiet, and what share of endings were lost |
 | Level roles left on former members | medium | PMPro Roles missed the cleanup, usually via a bulk cancellation |
@@ -78,7 +79,7 @@ Neither needs a Stripe API call. The whole check is local option and table reads
 
 **Memberships → Health Check**, which has two tabs:
 
-- **Members** — the nine checks about people.
+- **Members** — the ten checks about people.
 - **Webhooks** — the gateway link, including PMPro's per-event last-received times.
 
 Only the open tab runs its queries, so each view costs about what one check costs.
@@ -136,6 +137,33 @@ add_filter( 'mhcheck_test_email_patterns', function ( $patterns ) {
 
 Deliberately short by default: a wrong guess here quietly accuses a paying member of being fake.
 
+### When an unsettled payment shows up
+
+An order counts as unsettled an hour after it was raised — long enough to exclude payments that are
+genuinely still in flight, short enough that this morning's still appears. Bank debits legitimately
+sit for days, so sites taking those will want longer:
+
+```php
+add_filter( 'mhcheck_pending_payment_grace_hours', function () {
+    return 72;
+} );
+```
+
+This is reported as information rather than a fault. Most resolve on their own: the gateway either
+takes the money or gives up, and giving up normally closes the membership without anyone
+intervening. The value is having somewhere to see them at all.
+
+## Running it on a copy
+
+Every date-based check compares a stored date against the current clock. On a staging site restored
+from a backup those disagree by the age of the copy, so payments taken since the snapshot look
+missing, cancellations look ignored, and members who have left look like leaks. The findings are
+accurate about the database in front of them and worthless about your business.
+
+The report says so when `WP_ENVIRONMENT_TYPE` is anything other than `production`. Not every host
+sets it, so the webhook check also names a restored copy as one explanation when billing has gone
+quiet. If a report looks alarming, check which database you are pointed at before you act on it.
+
 ## Development
 
 ```bash
@@ -178,6 +206,10 @@ version belongs in the plugin header and the changelog, not in a path.
 
 Summarised here; the reasoning behind each change is in [CHANGELOG.md](CHANGELOG.md).
 
+- **0.5.0** — Eleventh check: payments not yet settled. Orders raised and never completed, on
+  members who still have access. PMPro advances the subscription on the strength of an unsettled
+  order, so the membership reads as paid and these appear nowhere else. Reported as information,
+  since most resolve on their own.
 - **0.4.0** — Tenth check: members holding access with no subscription behind them, shown with the
   discount code that usually explains it. Checks can now contribute their own findings columns.
 - **0.3.1** — Text domain matched to the plugin slug, so translations load. Queries rewritten so

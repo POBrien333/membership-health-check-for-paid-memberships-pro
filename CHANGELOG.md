@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.5.0] — 2026-09-03
+
+Added an eleventh check: **Payments not yet settled**.
+
+An initiated card payment that is never confirmed leaves an order sitting at
+`pending`. PMPro then advances the subscription's `next_payment_date` to the
+following cycle on the strength of that order. The membership reads as paid,
+nothing anywhere looks overdue, and the money never arrived.
+
+That is what makes them genuinely hard to see. Every other check in this plugin
+keys on the next payment date, and that date has already moved. So this one reads
+order status directly. `token` and `review` are included as the same shape — a
+checkout that stalled part-way, an order held for fraud review — while `error` is
+excluded, being a failure the gateway has already reported and acted on.
+
+Filed as `info`. Most resolve on their own: the gateway either takes the money or
+gives up, and giving up normally closes the membership without anyone
+intervening. The value is having somewhere to see them at all, not an alarm.
+
+An order counts as unsettled an hour after it was raised, and only for members who
+still hold an active membership. `mhcheck_pending_payment_grace_hours` moves the
+grace for sites taking bank debits, which legitimately sit for days.
+
+### Two detours worth recording
+
+The check was **first built on the next payment date** and could not have found a
+single one of these, for the reason above. It was rewritten once a real `pending`
+order appeared.
+
+That order took a while to appear because the database being queried was a
+**staging copy restored from a week-old backup**, while the clock was today's.
+Every payment taken since the snapshot looked missing, every cancellation looked
+ignored, and three subscriptions appeared 6, 31 and 50 hours overdue. All three
+were artefacts. The lesson is in the code now:
+
+- The report warns whenever `WP_ENVIRONMENT_TYPE` is not `production`, in both the
+  admin screen and WP-CLI, because no check here can tell a stale copy from a
+  broken gateway on the data alone.
+- Not every host sets that, so the webhook check additionally names a restored
+  copy as one explanation for billing having gone quiet.
+
+**A warning when the report cannot be trusted.** Every date-based check compares a
+stored date against the current clock. On a staging site restored from a backup
+the two disagree by the age of the copy, so payments taken since the snapshot look
+missing, cancellations look ignored, and departed members look like leaks. This
+cost a genuine afternoon during development: three subscriptions appeared 6, 31
+and 50 hours overdue, and all three were artefacts of a week-old copy being
+queried against today's clock.
+
+The report now says so whenever `WP_ENVIRONMENT_TYPE` is anything but
+`production`. Not every host sets it, so the webhook check additionally names a
+restored copy as one explanation for billing having gone quiet — the plugin cannot
+always know, but it can stop asserting more than it knows.
+
 ## [0.4.0] — 2026-09-01
 
 Added a tenth check: **Members with access and no subscription behind it**.
