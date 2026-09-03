@@ -43,6 +43,26 @@ None of it was visible in the admin. Every one of those became a check.
 
 The `high` checks are the ones that cost money.
 
+## What it looks like
+
+![The Members tab: members with access but nothing billing, and members with access and no
+subscription behind it, each row showing the discount code that explains
+it](.wordpress-org/screenshot-4.png)
+
+<details>
+<summary>More of the report</summary>
+
+![Payments not yet settled, subscriptions the gateway stopped charging, and level roles left on
+former members](.wordpress-org/screenshot-3.png)
+
+![Memberships for deleted users, discount codes near their limit, and memberships ending in the next
+30 days](.wordpress-org/screenshot-2.png)
+
+</details>
+
+Names, addresses and discount codes in these are replaced with placeholders. The counts, dates and
+amounts are real.
+
 ## The distinction that matters
 
 A cancelled subscription **with** a future end date is a member winding down correctly — they paid

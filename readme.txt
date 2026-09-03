@@ -78,6 +78,15 @@ No. It reads the timestamps PMPro already stores when each event arrives, plus y
 
 Partly so you do not have to leave the report. Mostly because PMPro keeps only the latest timestamp per event type and overwrites it on every delivery, so it proves the endpoint is alive but never that every event arrived. The check adds the two measurements that survive that overwrite: whether billing has gone quiet relative to this site's own rhythm, and what share of subscription endings left a membership open.
 
+== Screenshots ==
+
+1. The Members tab. Members with access but nothing billing, and members with access and no subscription behind it — the latter showing the discount code that usually explains why.
+2. Memberships belonging to deleted users, discount codes approaching their use limit, and memberships ending within the next 30 days.
+3. Payments raised and never settled, subscriptions the gateway quietly stopped charging, and level roles left behind on former members.
+4. The same report on a site with more findings, showing how the discount code column separates a deliberate comp from access nobody chose to give.
+
+Names, email addresses and discount codes in these screenshots are placeholders. The counts, dates and amounts are real.
+
 == Changelog ==
 
 = 0.5.0 =
