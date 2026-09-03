@@ -22,7 +22,7 @@ This plugin finds those, and ten other things that go quietly wrong.
 
 * Members with access but nothing billing — subscription ended, membership never closed, no end date
 * Members with access and no subscription behind it — never had one at all: comps, staff, and anyone paying you outside the gateway
-* Payments due but not received — PMPro shows these as pending; usually a card that declined, expired or was stopped at the bank
+* Payments not yet settled — orders raised and never completed, on members who still have access; PMPro advances the subscription anyway, so these appear nowhere else
 * Subscriptions the gateway stopped charging — still marked active, next payment long overdue
 * Stripe webhook delivery — when each event type last arrived, whether billing has gone quiet, and what share of subscription endings were lost
 * Level roles left on former members
@@ -81,9 +81,9 @@ Partly so you do not have to leave the report. Mostly because PMPro keeps only t
 == Changelog ==
 
 = 0.5.0 =
-* New check: "Payments due but not received". PMPro shows these as pending on the subscription screen, but there is no pending status stored anywhere — it is the scheduled next payment, still scheduled, because nothing has come back from the gateway. There is no order to find, which is what makes them easy to miss.
-* Usually a card that declined, expired or was stopped at the bank. The gateway retries for days or weeks while the member keeps full access, so this is the window in which a conversation still changes the outcome. After seven days it hands off to the failed-subscription check.
-* A payment counts as late after a full day, and only for members who still have an active membership. The grace is filterable through `mhcheck_pending_payment_grace_hours`.
+* New check: "Payments not yet settled". Orders raised and never completed, on members who still have access — usually a card that declined, expired or was stopped at the bank. Reported as information, not a fault: most resolve on their own, and a gateway that gives up normally closes the membership by itself.
+* These appear nowhere else. PMPro advances the subscription to the next cycle on the strength of an unsettled order, so the membership reads as paid and nothing anywhere looks overdue. Every other check keys on that date; this one reads order status directly.
+* An order counts as unsettled an hour after it was raised, and only for members who still hold an active membership. The grace is filterable through `mhcheck_pending_payment_grace_hours`.
 * The report now warns when it is running outside a production environment. Every date-based check compares stored dates against the current clock, so on a staging site restored from a backup, payments taken since the snapshot look missing and cancellations look ignored. The webhook check also names a restored copy as one explanation for billing having gone quiet.
 
 = 0.4.0 =

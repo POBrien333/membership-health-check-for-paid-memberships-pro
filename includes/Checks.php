@@ -310,65 +310,65 @@ final class Checks {
 			__( 'No active subscription is overdue.', 'membership-health-check-for-paid-memberships-pro' )
 		);
 	}
-
 	/**
-	 * Payments that were due and have not arrived.
+	 * Orders that never settled, on members who still have access.
 	 *
-	 * PMPro shows these as "pending" on the subscription screen. That is not a
-	 * stored status and there is no order to find — it is the scheduled next
-	 * payment, still scheduled, because nothing has come back from the gateway.
-	 * Which is exactly why they are easy to miss: nothing in the orders table
-	 * says anything is wrong.
+	 * A card payment that is initiated but not confirmed leaves an order sitting
+	 * at `pending`. PMPro then advances the subscription's next payment date on
+	 * the strength of that order, so the membership reads as paid for another
+	 * cycle and nothing anywhere looks overdue. That is what makes these hard to
+	 * see: every other check here keys on the next payment date, and that date has
+	 * already moved.
 	 *
-	 * Usually a card that declined, expired, or was stopped at the bank. The
-	 * gateway retries over days or weeks and the member keeps full access the
-	 * whole time, so this is the window in which a conversation still changes the
-	 * outcome. Past a week the subscription is treated as failed instead, by the
-	 * check above.
+	 * Which is why this reads order status directly rather than inferring from
+	 * dates. Built the other way round first, it could not have found one of them.
 	 *
-	 * The grace period is a full day, and that is deliberately generous. A
-	 * gateway that normally posts within a minute does not need 24 hours, but
-	 * every hour of grace is an hour in which a delayed webhook can still arrive
-	 * and settle the matter by itself. A check that reports a payment on Monday
-	 * and forgets it on Tuesday teaches people to ignore it, which costs more
-	 * than catching the failure a few hours sooner. It still runs six days ahead
-	 * of the failed-subscription check. Sites that bill by invoice will want
-	 * longer, hence the filter.
+	 * Reported as information, not a fault. Most resolve on their own: the gateway
+	 * either takes the money or gives up, and giving up normally closes the
+	 * membership without anyone intervening. The value is the view, not an alarm.
+	 *
+	 * `token` and `review` join `pending` because they are the same shape — a
+	 * checkout that stalled part-way, or an order held for fraud review, is access
+	 * granted against money that has not landed. `error` is excluded: a failed
+	 * payment is a fact the gateway has already reported and acted on.
+	 *
+	 * The grace is an hour, enough to exclude payments that are genuinely still in
+	 * flight without hiding this morning's. Bank debits legitimately sit for days,
+	 * so sites taking those will want longer, hence the filter.
 	 */
 	public static function pending_payments(): array {
 		global $wpdb;
 
 		$env   = (string) get_option( 'pmpro_gateway_environment' );
 		$env   = '' === $env ? 'live' : $env;
-		$grace = (int) apply_filters( 'mhcheck_pending_payment_grace_hours', 24 );
-		$grace = max( 0, $grace );
+		$grace = max( 0, (int) apply_filters( 'mhcheck_pending_payment_grace_hours', 1 ) );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table names come from $wpdb->prefix and cannot be placeholders.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT s.user_id, u.user_email, u.display_name,
-				        s.membership_level_id AS level,
-				        s.next_payment_date, s.billing_amount,
-				        TIMESTAMPDIFF( HOUR, s.next_payment_date, NOW() ) AS hours_late,
-				        ( SELECT MAX( o.timestamp ) FROM {$wpdb->prefix}pmpro_membership_orders o
-				           WHERE o.user_id = s.user_id AND o.status = 'success' ) AS last_success
-				   FROM {$wpdb->prefix}pmpro_subscriptions s
-				   INNER JOIN {$wpdb->users} u ON u.ID = s.user_id
+				"SELECT o.user_id, u.user_email, u.display_name,
+				        mu.membership_id AS level,
+				        o.id AS order_id, o.status AS order_status,
+				        o.timestamp, o.total,
+				        TIMESTAMPDIFF( HOUR, o.timestamp, NOW() ) AS hours_stuck,
+				        s.next_payment_date
+				   FROM {$wpdb->prefix}pmpro_membership_orders o
+				   INNER JOIN {$wpdb->users} u ON u.ID = o.user_id
 				   INNER JOIN {$wpdb->prefix}pmpro_memberships_users mu
-				           ON mu.user_id = s.user_id AND mu.status = 'active'
-				  WHERE s.status = 'active'
-				    AND s.gateway_environment = %s
-				    AND s.next_payment_date IS NOT NULL
-				    AND s.next_payment_date <> '0000-00-00 00:00:00'
-				    AND s.next_payment_date < DATE_SUB( NOW(), INTERVAL %d HOUR )
-				    AND s.next_payment_date >= DATE_SUB( NOW(), INTERVAL 7 DAY )
+				           ON mu.user_id = o.user_id AND mu.status = 'active'
+				   LEFT JOIN {$wpdb->prefix}pmpro_subscriptions s
+				          ON s.user_id = o.user_id
+				         AND s.subscription_transaction_id = o.subscription_transaction_id
+				  WHERE o.status IN ( 'pending', 'token', 'review' )
+				    AND o.gateway_environment = %s
+				    AND o.timestamp < DATE_SUB( NOW(), INTERVAL %d HOUR )
 				    AND NOT EXISTS (
 				          SELECT 1 FROM {$wpdb->prefix}pmpro_membership_orders o2
-				           WHERE o2.user_id = s.user_id
+				           WHERE o2.user_id = o.user_id
 				             AND o2.status = 'success'
-				             AND o2.timestamp >= s.next_payment_date
+				             AND o2.timestamp > o.timestamp
 				        )
-				  ORDER BY s.next_payment_date ASC",
+				  ORDER BY o.timestamp ASC",
 				$env,
 				$grace
 			),
@@ -377,38 +377,52 @@ final class Checks {
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		foreach ( $rows as &$r ) {
-			$late = (int) $r['hours_late'];
+			$stuck = (int) $r['hours_stuck'];
 
-			$age = $late < 48
+			$age = $stuck < 48
 				? sprintf(
-					/* translators: %d: whole hours since the payment fell due */
-					_n( '%d hour late', '%d hours late', $late, 'membership-health-check-for-paid-memberships-pro' ),
-					$late
+					/* translators: %d: whole hours the order has been unsettled */
+					_n( 'stuck %d hour', 'stuck %d hours', $stuck, 'membership-health-check-for-paid-memberships-pro' ),
+					$stuck
 				)
 				: sprintf(
-					/* translators: %d: whole days since the payment fell due */
-					_n( '%d day late', '%d days late', intdiv( $late, 24 ), 'membership-health-check-for-paid-memberships-pro' ),
-					intdiv( $late, 24 )
+					/* translators: %d: whole days the order has been unsettled */
+					_n( 'stuck %d day', 'stuck %d days', intdiv( $stuck, 24 ), 'membership-health-check-for-paid-memberships-pro' ),
+					intdiv( $stuck, 24 )
 				);
 
-			$r['detail'] = sprintf(
-				/* translators: 1: amount due, 2: date it was due, 3: how late it is, 4: date of the last successful payment */
-				__( '%1$s due %2$s, %3$s — last paid %4$s', 'membership-health-check-for-paid-memberships-pro' ),
-				self::money( $r['billing_amount'] ),
-				substr( (string) $r['next_payment_date'], 0, 10 ),
-				$age,
-				substr( (string) $r['last_success'], 0, 10 )
+			$detail = sprintf(
+				/* translators: 1: amount, 2: order status, 3: date the order was raised, 4: how long it has been unsettled */
+				__( '%1$s %2$s since %3$s, %4$s', 'membership-health-check-for-paid-memberships-pro' ),
+				self::money( $r['total'] ),
+				$r['order_status'],
+				substr( (string) $r['timestamp'], 0, 10 ),
+				$age
 			);
+
+			// The part that makes this invisible to everything else: PMPro has
+			// already rolled the subscription forward as though it were paid.
+			if ( ! empty( $r['next_payment_date'] )
+				&& '0000-00-00 00:00:00' !== $r['next_payment_date']
+				&& strtotime( (string) $r['next_payment_date'] ) > strtotime( (string) $r['timestamp'] ) ) {
+				$detail .= ' — ' . sprintf(
+					/* translators: %s: the date the subscription has already been rolled forward to */
+					__( 'subscription already rolled on to %s', 'membership-health-check-for-paid-memberships-pro' ),
+					substr( (string) $r['next_payment_date'], 0, 10 )
+				);
+			}
+
+			$r['detail'] = $detail;
 		}
 		unset( $r );
 
 		return self::result(
 			'pending_payments',
-			__( 'Payments due but not received', 'membership-health-check-for-paid-memberships-pro' ),
-			self::SEVERITY_MEDIUM,
-			__( 'PMPro shows these as pending: the payment was scheduled, and nothing has come back from the gateway. Usually a card that declined, expired, or was stopped at the bank. The gateway will keep retrying for days or weeks and the member keeps full access throughout, which is what makes these worth catching now rather than later — after a week they become the failed subscriptions above, and after that, free access nobody noticed.', 'membership-health-check-for-paid-memberships-pro' ),
+			__( 'Payments not yet settled', 'membership-health-check-for-paid-memberships-pro' ),
+			self::SEVERITY_INFO,
+			__( 'Money asked for and not yet received: orders raised but not completed, on members who still have access. Usually a card that declined, expired, or was stopped at the bank, and most resolve on their own — the gateway either takes the money or gives up, and a failure normally closes the membership by itself. Listed rather than warned about, because nothing here needs doing. It is worth a look because these appear nowhere else: PMPro advances the subscription to the next cycle on the strength of an unsettled order, so none of them read as overdue.', 'membership-health-check-for-paid-memberships-pro' ),
 			$rows,
-			__( 'Every payment that has fallen due has arrived.', 'membership-health-check-for-paid-memberships-pro' )
+			__( 'Every order raised has either settled or failed outright.', 'membership-health-check-for-paid-memberships-pro' )
 		);
 	}
 

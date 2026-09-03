@@ -2,36 +2,44 @@
 
 ## [0.5.0] — 2026-09-03
 
-Added an eleventh check: **Payments due but not received**.
+Added an eleventh check: **Payments not yet settled**.
 
-PMPro shows these as "pending" on the subscription screen, and that label caused
-a long detour: there is no `pending` status anywhere in the database. On the site
-this was written for, `pmpro_membership_orders` has only ever held `success`,
-`refunded` and `error` — not one `pending` row in 2,661 orders. What PMPro is
-showing is the subscription's scheduled `next_payment_date`, still scheduled,
-because nothing has come back from the gateway. There is no order to find, which
-is exactly what makes these easy to miss: nothing in the orders table says
-anything is wrong.
+An initiated card payment that is never confirmed leaves an order sitting at
+`pending`. PMPro then advances the subscription's `next_payment_date` to the
+following cycle on the strength of that order. The membership reads as paid,
+nothing anywhere looks overdue, and the money never arrived.
 
-The cause is almost always a card that declined, expired, or was stopped at the
-bank. The gateway retries over days or weeks, and the member keeps full access the
-entire time. So this is a window, not a verdict — which is why it is filed as
-`medium` rather than `high`. After seven days it hands off to *Subscriptions the
-gateway stopped charging*, which does treat it as a failure, and the two together
-now cover the whole timeline from *due this morning* to *free for four years*.
+That is what makes them genuinely hard to see. Every other check in this plugin
+keys on the next payment date, and that date has already moved. So this one reads
+order status directly. `token` and `review` are included as the same shape — a
+checkout that stalled part-way, an order held for fraud review — while `error` is
+excluded, being a failure the gateway has already reported and acted on.
 
-The grace before a payment is called late is a full day, and deliberately
-generous. A gateway that posts within a minute does not need 24 hours, but every
-hour of grace is an hour in which a delayed webhook can still arrive and settle
-the matter by itself. A check that reports a payment on Monday and has forgotten
-it by Tuesday teaches people to ignore the report, which costs more than catching
-a failure a few hours sooner. It still runs six days ahead of the failed
-subscription check, and `mhcheck_pending_payment_grace_hours` moves it for sites
-that bill by invoice.
+Filed as `info`. Most resolve on their own: the gateway either takes the money or
+gives up, and giving up normally closes the membership without anyone
+intervening. The value is having somewhere to see them at all, not an alarm.
 
-The check also requires an active membership. Without that it reported payments
-as owing from people who had already left, which is noise of the worst kind:
-technically true of a subscription row, meaningless as a statement about a member.
+An order counts as unsettled an hour after it was raised, and only for members who
+still hold an active membership. `mhcheck_pending_payment_grace_hours` moves the
+grace for sites taking bank debits, which legitimately sit for days.
+
+### Two detours worth recording
+
+The check was **first built on the next payment date** and could not have found a
+single one of these, for the reason above. It was rewritten once a real `pending`
+order appeared.
+
+That order took a while to appear because the database being queried was a
+**staging copy restored from a week-old backup**, while the clock was today's.
+Every payment taken since the snapshot looked missing, every cancellation looked
+ignored, and three subscriptions appeared 6, 31 and 50 hours overdue. All three
+were artefacts. The lesson is in the code now:
+
+- The report warns whenever `WP_ENVIRONMENT_TYPE` is not `production`, in both the
+  admin screen and WP-CLI, because no check here can tell a stale copy from a
+  broken gateway on the data alone.
+- Not every host sets that, so the webhook check additionally names a restored
+  copy as one explanation for billing having gone quiet.
 
 **A warning when the report cannot be trusted.** Every date-based check compares a
 stored date against the current clock. On a staging site restored from a backup

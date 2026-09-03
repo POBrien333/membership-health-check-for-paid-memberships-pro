@@ -31,7 +31,7 @@ None of it was visible in the admin. Every one of those became a check.
 |---|---|---|
 | Members with access but nothing billing | high | Subscription ended, membership never closed, no end date — indefinite free access |
 | Members with access and no subscription behind it | info | Never had one at all — with the discount code that usually explains why |
-| Payments due but not received | medium | Scheduled, nothing back from the gateway — a card that declined, expired or was stopped |
+| Payments not yet settled | info | Orders raised and never completed — PMPro rolls the subscription forward anyway, so they read as overdue nowhere |
 | Subscriptions the gateway stopped charging | high | Still marked `active`, but the next payment date passed and no charge followed |
 | Stripe webhook delivery | high | When each event type last arrived, whether billing has gone quiet, and what share of endings were lost |
 | Level roles left on former members | medium | PMPro Roles missed the cleanup, usually via a bulk cancellation |
@@ -137,16 +137,11 @@ add_filter( 'mhcheck_test_email_patterns', function ( $patterns ) {
 
 Deliberately short by default: a wrong guess here quietly accuses a paying member of being fake.
 
-### When a payment counts as late
+### When an unsettled payment shows up
 
-A payment is reported once it is a full day overdue. That is deliberately generous: a gateway that
-posts within a minute does not need 24 hours, but every hour of grace is an hour in which a delayed
-webhook can still arrive and settle the matter by itself. A check that reports a payment on Monday
-and has forgotten it by Tuesday teaches you to ignore the report, which costs far more than
-catching a real failure a few hours sooner. It still runs six days ahead of the failed-subscription
-check.
-
-Sites that bill by invoice, or whose gateway posts in batches, will want longer:
+An order counts as unsettled an hour after it was raised — long enough to exclude payments that are
+genuinely still in flight, short enough that this morning's still appears. Bank debits legitimately
+sit for days, so sites taking those will want longer:
 
 ```php
 add_filter( 'mhcheck_pending_payment_grace_hours', function () {
@@ -154,8 +149,9 @@ add_filter( 'mhcheck_pending_payment_grace_hours', function () {
 } );
 ```
 
-Past seven days the payment stops being pending and becomes a failed subscription, which is a
-different check and a `high` one.
+This is reported as information rather than a fault. Most resolve on their own: the gateway either
+takes the money or gives up, and giving up normally closes the membership without anyone
+intervening. The value is having somewhere to see them at all.
 
 ## Running it on a copy
 
@@ -210,10 +206,10 @@ version belongs in the plugin header and the changelog, not in a path.
 
 Summarised here; the reasoning behind each change is in [CHANGELOG.md](CHANGELOG.md).
 
-- **0.5.0** — Eleventh check: payments due but not received. PMPro calls these "pending", but there
-  is no pending status in the database — it's the scheduled payment, still scheduled, because
-  nothing came back from the gateway. Usually a declined or expired card. Reported from two hours
-  late until the seven-day mark, where the failed-subscription check takes over.
+- **0.5.0** — Eleventh check: payments not yet settled. Orders raised and never completed, on
+  members who still have access. PMPro advances the subscription on the strength of an unsettled
+  order, so the membership reads as paid and these appear nowhere else. Reported as information,
+  since most resolve on their own.
 - **0.4.0** — Tenth check: members holding access with no subscription behind them, shown with the
   discount code that usually explains it. Checks can now contribute their own findings columns.
 - **0.3.1** — Text domain matched to the plugin slug, so translations load. Queries rewritten so
