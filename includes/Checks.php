@@ -68,6 +68,7 @@ final class Checks {
 		return array(
 			self::unbilled_access(),
 			self::access_without_subscription(),
+			self::pending_payments(),
 			self::stalled_subscriptions(),
 			self::orphaned_roles(),
 			self::members_missing_default_role(),
@@ -307,6 +308,102 @@ final class Checks {
 			__( 'Marked active here, but the next payment date passed long ago and no charge followed. Nothing looks wrong in the admin, which is why these run for years.', 'membership-health-check-for-paid-memberships-pro' ),
 			$rows,
 			__( 'No active subscription is overdue.', 'membership-health-check-for-paid-memberships-pro' )
+		);
+	}
+
+	/**
+	 * Payments that were due and have not arrived.
+	 *
+	 * PMPro shows these as "pending" on the subscription screen. That is not a
+	 * stored status and there is no order to find — it is the scheduled next
+	 * payment, still scheduled, because nothing has come back from the gateway.
+	 * Which is exactly why they are easy to miss: nothing in the orders table
+	 * says anything is wrong.
+	 *
+	 * Usually a card that declined, expired, or was stopped at the bank. The
+	 * gateway retries over days or weeks and the member keeps full access the
+	 * whole time, so this is the window in which a conversation still changes the
+	 * outcome. Past a week the subscription is treated as failed instead, by the
+	 * check above.
+	 *
+	 * The two-hour default grace is not arbitrary: on the site this was written
+	 * for, every one of seven consecutive renewals produced its order within 57
+	 * seconds of falling due. A payment still missing hours later is not in
+	 * flight. Sites that bill by invoice will want a longer grace, hence the
+	 * filter.
+	 */
+	public static function pending_payments(): array {
+		global $wpdb;
+
+		$env   = (string) get_option( 'pmpro_gateway_environment' );
+		$env   = '' === $env ? 'live' : $env;
+		$grace = (int) apply_filters( 'mhcheck_pending_payment_grace_hours', 2 );
+		$grace = max( 0, $grace );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table names come from $wpdb->prefix and cannot be placeholders.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.user_id, u.user_email, u.display_name,
+				        s.membership_level_id AS level,
+				        s.next_payment_date, s.billing_amount,
+				        TIMESTAMPDIFF( HOUR, s.next_payment_date, NOW() ) AS hours_late,
+				        ( SELECT MAX( o.timestamp ) FROM {$wpdb->prefix}pmpro_membership_orders o
+				           WHERE o.user_id = s.user_id AND o.status = 'success' ) AS last_success
+				   FROM {$wpdb->prefix}pmpro_subscriptions s
+				   INNER JOIN {$wpdb->users} u ON u.ID = s.user_id
+				  WHERE s.status = 'active'
+				    AND s.gateway_environment = %s
+				    AND s.next_payment_date IS NOT NULL
+				    AND s.next_payment_date <> '0000-00-00 00:00:00'
+				    AND s.next_payment_date < DATE_SUB( NOW(), INTERVAL %d HOUR )
+				    AND s.next_payment_date >= DATE_SUB( NOW(), INTERVAL 7 DAY )
+				    AND NOT EXISTS (
+				          SELECT 1 FROM {$wpdb->prefix}pmpro_membership_orders o2
+				           WHERE o2.user_id = s.user_id
+				             AND o2.status = 'success'
+				             AND o2.timestamp >= s.next_payment_date
+				        )
+				  ORDER BY s.next_payment_date ASC",
+				$env,
+				$grace
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		foreach ( $rows as &$r ) {
+			$late = (int) $r['hours_late'];
+
+			$age = $late < 48
+				? sprintf(
+					/* translators: %d: whole hours since the payment fell due */
+					_n( '%d hour late', '%d hours late', $late, 'membership-health-check-for-paid-memberships-pro' ),
+					$late
+				)
+				: sprintf(
+					/* translators: %d: whole days since the payment fell due */
+					_n( '%d day late', '%d days late', intdiv( $late, 24 ), 'membership-health-check-for-paid-memberships-pro' ),
+					intdiv( $late, 24 )
+				);
+
+			$r['detail'] = sprintf(
+				/* translators: 1: amount due, 2: date it was due, 3: how late it is, 4: date of the last successful payment */
+				__( '%1$s due %2$s, %3$s — last paid %4$s', 'membership-health-check-for-paid-memberships-pro' ),
+				self::money( $r['billing_amount'] ),
+				substr( (string) $r['next_payment_date'], 0, 10 ),
+				$age,
+				substr( (string) $r['last_success'], 0, 10 )
+			);
+		}
+		unset( $r );
+
+		return self::result(
+			'pending_payments',
+			__( 'Payments due but not received', 'membership-health-check-for-paid-memberships-pro' ),
+			self::SEVERITY_MEDIUM,
+			__( 'PMPro shows these as pending: the payment was scheduled, and nothing has come back from the gateway. Usually a card that declined, expired, or was stopped at the bank. The gateway will keep retrying for days or weeks and the member keeps full access throughout, which is what makes these worth catching now rather than later — after a week they become the failed subscriptions above, and after that, free access nobody noticed.', 'membership-health-check-for-paid-memberships-pro' ),
+			$rows,
+			__( 'Every payment that has fallen due has arrived.', 'membership-health-check-for-paid-memberships-pro' )
 		);
 	}
 

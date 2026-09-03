@@ -4,7 +4,7 @@ Tags: paid memberships pro, pmpro, membership, subscriptions, audit
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,7 +14,7 @@ Finds members who still have access but stopped paying, plus the quiet data drif
 
 Subscriptions end at the gateway. Sometimes the webhook telling your site never arrives — and the membership stays open. The member keeps full access, nothing looks wrong in the admin, and nobody notices for years.
 
-This plugin finds those, and nine other things that go quietly wrong.
+This plugin finds those, and ten other things that go quietly wrong.
 
 **It is read-only.** It reports what looks wrong so you can decide what to do. It never cancels, deletes or edits anything, because every finding needs judgement: a zero-value order can be a deliberate comp or a payment taken by bank transfer, and only you know which.
 
@@ -22,6 +22,7 @@ This plugin finds those, and nine other things that go quietly wrong.
 
 * Members with access but nothing billing — subscription ended, membership never closed, no end date
 * Members with access and no subscription behind it — never had one at all: comps, staff, and anyone paying you outside the gateway
+* Payments due but not received — PMPro shows these as pending; usually a card that declined, expired or was stopped at the bank
 * Subscriptions the gateway stopped charging — still marked active, next payment long overdue
 * Stripe webhook delivery — when each event type last arrived, whether billing has gone quiet, and what share of subscription endings were lost
 * Level roles left on former members
@@ -33,7 +34,7 @@ This plugin finds those, and nine other things that go quietly wrong.
 
 **Two tabs**
 
-Members covers the nine checks about people. Webhooks covers the link to the gateway, mirroring the per-event last-received times PMPro records and adding what that table cannot show. Only the open tab runs its queries.
+Members covers the ten checks about people. Webhooks covers the link to the gateway, mirroring the per-event last-received times PMPro records and adding what that table cannot show. Only the open tab runs its queries.
 
 **Costs nothing to have installed**
 
@@ -78,6 +79,11 @@ No. It reads the timestamps PMPro already stores when each event arrives, plus y
 Partly so you do not have to leave the report. Mostly because PMPro keeps only the latest timestamp per event type and overwrites it on every delivery, so it proves the endpoint is alive but never that every event arrived. The check adds the two measurements that survive that overwrite: whether billing has gone quiet relative to this site's own rhythm, and what share of subscription endings left a membership open.
 
 == Changelog ==
+
+= 0.5.0 =
+* New check: "Payments due but not received". PMPro shows these as pending on the subscription screen, but there is no pending status stored anywhere — it is the scheduled next payment, still scheduled, because nothing has come back from the gateway. There is no order to find, which is what makes them easy to miss.
+* Usually a card that declined, expired or was stopped at the bank. The gateway retries for days or weeks while the member keeps full access, so this is the window in which a conversation still changes the outcome. After seven days it hands off to the failed-subscription check.
+* The two-hour grace before a payment counts as late is filterable through `mhcheck_pending_payment_grace_hours`.
 
 = 0.4.0 =
 * New check: "Members with access and no subscription behind it". The existing check needed a subscription to have existed and ended, so it could not see anyone who never had one. That is most of the gap between your member count and your subscriber count.

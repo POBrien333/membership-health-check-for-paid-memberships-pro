@@ -31,6 +31,7 @@ None of it was visible in the admin. Every one of those became a check.
 |---|---|---|
 | Members with access but nothing billing | high | Subscription ended, membership never closed, no end date — indefinite free access |
 | Members with access and no subscription behind it | info | Never had one at all — with the discount code that usually explains why |
+| Payments due but not received | medium | Scheduled, nothing back from the gateway — a card that declined, expired or was stopped |
 | Subscriptions the gateway stopped charging | high | Still marked `active`, but the next payment date passed and no charge followed |
 | Stripe webhook delivery | high | When each event type last arrived, whether billing has gone quiet, and what share of endings were lost |
 | Level roles left on former members | medium | PMPro Roles missed the cleanup, usually via a bulk cancellation |
@@ -78,7 +79,7 @@ Neither needs a Stripe API call. The whole check is local option and table reads
 
 **Memberships → Health Check**, which has two tabs:
 
-- **Members** — the nine checks about people.
+- **Members** — the ten checks about people.
 - **Webhooks** — the gateway link, including PMPro's per-event last-received times.
 
 Only the open tab runs its queries, so each view costs about what one check costs.
@@ -136,6 +137,23 @@ add_filter( 'mhcheck_test_email_patterns', function ( $patterns ) {
 
 Deliberately short by default: a wrong guess here quietly accuses a paying member of being fake.
 
+### When a payment counts as late
+
+A payment is reported as pending once it is two hours overdue. That default is measured rather than
+guessed — on the site this was written for, seven consecutive renewals each produced their order
+within 57 seconds of falling due, so a payment still missing hours later is not in flight.
+
+Sites that bill by invoice, or whose gateway posts in batches, will want longer:
+
+```php
+add_filter( 'mhcheck_pending_payment_grace_hours', function () {
+    return 48;
+} );
+```
+
+Past seven days the payment stops being pending and becomes a failed subscription, which is a
+different check and a `high` one.
+
 ## Development
 
 ```bash
@@ -178,6 +196,10 @@ version belongs in the plugin header and the changelog, not in a path.
 
 Summarised here; the reasoning behind each change is in [CHANGELOG.md](CHANGELOG.md).
 
+- **0.5.0** — Eleventh check: payments due but not received. PMPro calls these "pending", but there
+  is no pending status in the database — it's the scheduled payment, still scheduled, because
+  nothing came back from the gateway. Usually a declined or expired card. Reported from two hours
+  late until the seven-day mark, where the failed-subscription check takes over.
 - **0.4.0** — Tenth check: members holding access with no subscription behind them, shown with the
   discount code that usually explains it. Checks can now contribute their own findings columns.
 - **0.3.1** — Text domain matched to the plugin slug, so translations load. Queries rewritten so

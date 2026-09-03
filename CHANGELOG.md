@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.5.0] — 2026-09-03
+
+Added an eleventh check: **Payments due but not received**.
+
+PMPro shows these as "pending" on the subscription screen, and that label caused
+a long detour: there is no `pending` status anywhere in the database. On the site
+this was written for, `pmpro_membership_orders` has only ever held `success`,
+`refunded` and `error` — not one `pending` row in 2,661 orders. What PMPro is
+showing is the subscription's scheduled `next_payment_date`, still scheduled,
+because nothing has come back from the gateway. There is no order to find, which
+is exactly what makes these easy to miss: nothing in the orders table says
+anything is wrong.
+
+The cause is almost always a card that declined, expired, or was stopped at the
+bank. The gateway retries over days or weeks, and the member keeps full access the
+entire time. So this is a window, not a verdict — which is why it is filed as
+`medium` rather than `high`. After seven days it hands off to *Subscriptions the
+gateway stopped charging*, which does treat it as a failure, and the two together
+now cover the whole timeline from *due this morning* to *free for four years*.
+
+The two-hour default grace is measured, not guessed. On the origin site seven
+consecutive renewals of the same subscription each produced their order within 57
+seconds of falling due; three subscriptions were sitting 6, 31 and 50 hours late
+when this was written. A payment still missing hours later is not in flight. Sites
+that bill by invoice will want longer, so the grace is filterable through
+`mhcheck_pending_payment_grace_hours`.
+
 ## [0.4.0] — 2026-09-01
 
 Added a tenth check: **Members with access and no subscription behind it**.
