@@ -1,3 +1,6 @@
+![Ten read-only checks across billing, subscriptions, webhooks, roles and discount codes, shown as a
+report where each check is either clean or carrying a count](.github/banner.png)
+
 # Membership Health Check for Paid Memberships Pro
 
 Finds members who still have access but stopped paying — plus the quieter data drift that
@@ -170,6 +173,22 @@ no version. WordPress identifies a plugin by its folder, and names that folder a
 whenever it cannot find one inside — so a version in the filename becomes a version in the
 installed folder, and every release then installs as a new plugin instead of upgrading. The
 version belongs in the plugin header and the changelog, not in a path.
+
+## Changelog
+
+Summarised here; the reasoning behind each change is in [CHANGELOG.md](CHANGELOG.md).
+
+- **0.4.0** — Tenth check: members holding access with no subscription behind them, shown with the
+  discount code that usually explains it. Checks can now contribute their own findings columns.
+- **0.3.1** — Text domain matched to the plugin slug, so translations load. Queries rewritten so
+  WordPress's Plugin Check can verify them, and a real false positive fixed: `test@` had been
+  matching as a substring, flagging addresses like `latest@example.org`.
+- **0.3.0** — Split into two tabs, Members and Webhooks, with only the open tab querying.
+  Test-account matching generalised to RFC-reserved domains. PHPCS added and the tree cleaned.
+  **Breaking:** prefix is now `MHCHECK_`, and the filter is `mhcheck_test_email_patterns`.
+- **0.2.0** — Ninth check: Stripe webhook delivery, measured against the site's own billing rhythm
+  and its own delivery loss rather than trusted.
+- **0.1.0** — First release. Eight read-only checks.
 
 ## License
 
